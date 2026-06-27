@@ -1,0 +1,81 @@
+use std::collections::{BTreeMap, BTreeSet};
+
+use habitsync::analytics::{
+    completion_rate, current_streak, days_from_civil, longest_streak, parse_date,
+};
+use habitsync::model::Habit;
+use habitsync::sync::{apply, changes_since};
+
+fn habit(id: &str, name: &str, updated: u64) -> Habit {
+    Habit {
+        id: id.to_string(),
+        name: name.to_string(),
+        schedule: String::new(),
+        updated_at: updated,
+        deleted: false,
+        seq: 0,
+    }
+}
+
+#[test]
+fn last_write_wins_and_counter_advances() {
+    let mut store: BTreeMap<String, Habit> = BTreeMap::new();
+    let mut counter = 0;
+
+    assert_eq!(
+        apply(
+            &mut store,
+            vec![habit("a", "run", 10), habit("b", "read", 10)],
+            &mut counter
+        ),
+        2
+    );
+    assert_eq!(counter, 2);
+
+    assert_eq!(
+        apply(&mut store, vec![habit("a", "stale", 5)], &mut counter),
+        0
+    );
+    assert_eq!(store["a"].name, "run");
+
+    assert_eq!(
+        apply(&mut store, vec![habit("a", "fresh", 20)], &mut counter),
+        1
+    );
+    assert_eq!(store["a"].name, "fresh");
+    assert_eq!(counter, 3);
+}
+
+#[test]
+fn delta_respects_cursor() {
+    let mut store: BTreeMap<String, Habit> = BTreeMap::new();
+    let mut counter = 0;
+    apply(&mut store, vec![habit("a", "run", 10)], &mut counter);
+    apply(&mut store, vec![habit("b", "read", 10)], &mut counter);
+
+    assert_eq!(changes_since(&store, 0).len(), 2);
+    let tail = changes_since(&store, 1);
+    assert_eq!(tail.len(), 1);
+    assert_eq!(tail[0].id, "b");
+    assert_eq!(changes_since(&store, 2).len(), 0);
+}
+
+#[test]
+fn parses_dates() {
+    assert_eq!(parse_date("2026-06-27"), Some(days_from_civil(2026, 6, 27)));
+    assert_eq!(parse_date("2026-13-01"), None);
+    assert_eq!(parse_date("garbage"), None);
+}
+
+#[test]
+fn computes_streaks_and_rate() {
+    let base = days_from_civil(2026, 6, 27);
+    let days: BTreeSet<i64> = [base, base - 1, base - 2, base - 5, base - 6]
+        .into_iter()
+        .collect();
+
+    assert_eq!(current_streak(&days, base), 3);
+    assert_eq!(current_streak(&days, base + 2), 0);
+    assert_eq!(longest_streak(&days), 3);
+    assert!((completion_rate(&days, base, 7) - 5.0 / 7.0).abs() < 1e-9);
+}
