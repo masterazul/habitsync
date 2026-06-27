@@ -10,6 +10,10 @@ readme = "README.md"
 keywords = ["habits", "sync", "offline-first", "analytics", "api"]
 categories = ["web-programming::http-server"]
 
+[[bin]]
+name = "habitsync"
+path = "src/main.rs"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
