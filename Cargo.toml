@@ -1,0 +1,23 @@
+[package]
+name = "habitsync"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+description = "Offline-first habit tracker backend: delta sync and streak analytics"
+license = "MIT"
+repository = "https://github.com/masterazul/habitsync"
+readme = "README.md"
+keywords = ["habits", "sync", "offline-first", "analytics", "api"]
+categories = ["web-programming::http-server"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tiny_http = "0.12"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
