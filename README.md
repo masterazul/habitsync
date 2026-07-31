@@ -1,9 +1,15 @@
 # habitsync
 
+[![CI](https://github.com/masterazul/habitsync/actions/workflows/ci.yml/badge.svg)](https://github.com/masterazul/habitsync/actions/workflows/ci.yml)
+[![Security](https://github.com/masterazul/habitsync/actions/workflows/security.yml/badge.svg)](https://github.com/masterazul/habitsync/actions/workflows/security.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Rust](https://img.shields.io/badge/rust-2021-orange.svg)
+
 Offline-first backend for a habit tracker. Clients work fully offline and reconcile with
 the server through a single delta-sync endpoint; the server also computes streak
 analytics. It is a small HTTP service with no database to run — state is an in-memory map
-optionally persisted to a JSON file.
+optionally persisted to a JSON file, written atomically so an interrupted save can't
+corrupt it.
 
 ## Sync model
 
