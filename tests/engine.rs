@@ -89,6 +89,9 @@ fn parses_dates() {
     assert_eq!(parse_date("2026-06-27"), Some(days_from_civil(2026, 6, 27)));
     assert_eq!(parse_date("2026-13-01"), None);
     assert_eq!(parse_date("garbage"), None);
+    assert_eq!(parse_date("2026-02-31"), None);
+    assert_eq!(parse_date("2026-02-29"), None);
+    assert!(parse_date("2024-02-29").is_some());
 }
 
 #[test]
@@ -102,4 +105,30 @@ fn computes_streaks_and_rate() {
     assert_eq!(current_streak(&days, base + 2), 0);
     assert_eq!(longest_streak(&days), 3);
     assert!((completion_rate(&days, base, 7) - 5.0 / 7.0).abs() < 1e-9);
+}
+
+#[test]
+fn tombstone_wins_and_propagates() {
+    let mut store: BTreeMap<String, Habit> = BTreeMap::new();
+    let mut counter = 0;
+    apply(&mut store, vec![habit("a", "run", 10)], &mut counter);
+
+    let mut tomb = habit("a", "run", 20);
+    tomb.deleted = true;
+    apply(&mut store, vec![tomb], &mut counter);
+
+    assert!(store["a"].deleted);
+    let delta = changes_since(&store, 1);
+    assert_eq!(delta.len(), 1);
+    assert!(delta[0].deleted);
+}
+
+#[test]
+fn current_streak_counts_grace_day() {
+    let base = days_from_civil(2026, 6, 27);
+    let yesterday: BTreeSet<i64> = [base - 1, base - 2].into_iter().collect();
+    assert_eq!(current_streak(&yesterday, base), 2);
+
+    let gap: BTreeSet<i64> = [base - 2].into_iter().collect();
+    assert_eq!(current_streak(&gap, base), 0);
 }
