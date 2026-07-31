@@ -36,7 +36,12 @@ impl Store {
         let result = f(&mut guard);
         if let Some(path) = &self.path {
             if let Ok(bytes) = serde_json::to_vec_pretty(&*guard) {
-                let _ = std::fs::write(path, bytes);
+                let mut tmp = path.clone().into_os_string();
+                tmp.push(".tmp");
+                let tmp = PathBuf::from(tmp);
+                if std::fs::write(&tmp, &bytes).is_ok() {
+                    let _ = std::fs::rename(&tmp, path);
+                }
             }
         }
         result

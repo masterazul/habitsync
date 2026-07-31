@@ -4,6 +4,7 @@ use habitsync::analytics::{
     completion_rate, current_streak, days_from_civil, longest_streak, parse_date,
 };
 use habitsync::model::Habit;
+use habitsync::store::Store;
 use habitsync::sync::{apply, changes_since};
 
 fn habit(id: &str, name: &str, updated: u64) -> Habit {
@@ -58,6 +59,29 @@ fn delta_respects_cursor() {
     assert_eq!(tail.len(), 1);
     assert_eq!(tail[0].id, "b");
     assert_eq!(changes_since(&store, 2).len(), 0);
+}
+
+#[test]
+fn store_persists_across_reopen() {
+    let mut path = std::env::temp_dir();
+    path.push(format!("habitsync-store-{}.json", std::process::id()));
+    let _ = std::fs::remove_file(&path);
+
+    {
+        let store = Store::open(Some(path.clone()));
+        store.write(|d| {
+            d.counter = 7;
+            d.habits.insert("h1".to_string(), habit("h1", "Read", 3));
+        });
+    }
+
+    let reopened = Store::open(Some(path.clone()));
+    reopened.read(|d| {
+        assert_eq!(d.counter, 7);
+        assert_eq!(d.habits.get("h1").map(|h| h.name.as_str()), Some("Read"));
+    });
+
+    let _ = std::fs::remove_file(&path);
 }
 
 #[test]
