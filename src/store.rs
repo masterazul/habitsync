@@ -39,13 +39,20 @@ impl Store {
         let mut guard = self.data.lock().unwrap();
         let result = f(&mut guard);
         if let Some(path) = &self.path {
-            if let Ok(bytes) = serde_json::to_vec_pretty(&*guard) {
-                let mut tmp = path.clone().into_os_string();
-                tmp.push(".tmp");
-                let tmp = PathBuf::from(tmp);
-                if std::fs::write(&tmp, &bytes).is_ok() {
-                    let _ = std::fs::rename(&tmp, path);
+            match serde_json::to_vec_pretty(&*guard) {
+                Ok(bytes) => {
+                    let mut tmp = path.clone().into_os_string();
+                    tmp.push(".tmp");
+                    let tmp = PathBuf::from(tmp);
+                    if let Err(e) = std::fs::write(&tmp, &bytes) {
+                        eprintln!("warning: could not write {}: {e}", tmp.display());
+                        let _ = std::fs::remove_file(&tmp);
+                    } else if let Err(e) = std::fs::rename(&tmp, path) {
+                        eprintln!("warning: could not persist {}: {e}", path.display());
+                        let _ = std::fs::remove_file(&tmp);
+                    }
                 }
+                Err(e) => eprintln!("warning: could not serialize state: {e}"),
             }
         }
         result
