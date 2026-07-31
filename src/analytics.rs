@@ -15,7 +15,22 @@ pub fn parse_date(text: &str) -> Option<i64> {
     let y = parts.next()?.parse::<i64>().ok()?;
     let m = parts.next()?.parse::<i64>().ok()?;
     let d = parts.next()?.parse::<i64>().ok()?;
-    if parts.next().is_some() || !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+    if parts.next().is_some() || !(1..=12).contains(&m) || d < 1 {
+        return None;
+    }
+    let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+    let max_day = match m {
+        2 => {
+            if leap {
+                29
+            } else {
+                28
+            }
+        }
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    if d > max_day {
         return None;
     }
     Some(days_from_civil(y, m, d))
