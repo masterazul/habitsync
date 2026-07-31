@@ -19,16 +19,20 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn open(path: Option<PathBuf>) -> Self {
-        let data = path
-            .as_ref()
-            .and_then(|p| std::fs::read(p).ok())
-            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-            .unwrap_or_default();
-        Store {
+    pub fn open(path: Option<PathBuf>) -> Result<Self, String> {
+        let data = match &path {
+            Some(p) => match std::fs::read(p) {
+                Ok(bytes) => serde_json::from_slice(&bytes)
+                    .map_err(|e| format!("could not parse {}: {e}", p.display()))?,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Data::default(),
+                Err(e) => return Err(format!("could not read {}: {e}", p.display())),
+            },
+            None => Data::default(),
+        };
+        Ok(Store {
             path,
             data: Mutex::new(data),
-        }
+        })
     }
 
     pub fn write<R>(&self, f: impl FnOnce(&mut Data) -> R) -> R {

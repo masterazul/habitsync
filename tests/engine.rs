@@ -68,14 +68,14 @@ fn store_persists_across_reopen() {
     let _ = std::fs::remove_file(&path);
 
     {
-        let store = Store::open(Some(path.clone()));
+        let store = Store::open(Some(path.clone())).unwrap();
         store.write(|d| {
             d.counter = 7;
             d.habits.insert("h1".to_string(), habit("h1", "Read", 3));
         });
     }
 
-    let reopened = Store::open(Some(path.clone()));
+    let reopened = Store::open(Some(path.clone())).unwrap();
     reopened.read(|d| {
         assert_eq!(d.counter, 7);
         assert_eq!(d.habits.get("h1").map(|h| h.name.as_str()), Some("Read"));
