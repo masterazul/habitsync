@@ -48,6 +48,10 @@ cargo run --release -- --port 8787 --data habitsync.json
 # HABITSYNC_PORT / HABITSYNC_DATA also work; omit --data to stay in-memory
 ```
 
+It binds to `127.0.0.1` by default — the API is unauthenticated, so exposing it is an
+explicit choice. To let mobile/web/CLI clients on your network sync, opt in with
+`--host 0.0.0.0` (or `HABITSYNC_HOST`). Request bodies over 1 MiB are rejected with `413`.
+
 ```
 curl -s localhost:8787/sync -d '{"since":0,"habits":[{"id":"h1","name":"Read","updated_at":1}],"checkins":[{"id":"c1","habit_id":"h1","date":"2026-06-27","updated_at":1}]}'
 curl -s localhost:8787/analytics

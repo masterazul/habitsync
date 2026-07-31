@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::io::Read;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -9,6 +10,8 @@ use habitsync::analytics::{self, completion_rate, current_streak, longest_streak
 use habitsync::model::{Checkin, Habit};
 use habitsync::store::Store;
 use habitsync::sync;
+
+const MAX_BODY: u64 = 1 << 20;
 
 #[derive(Deserialize)]
 struct SyncRequest {
@@ -46,16 +49,26 @@ fn main() {
         .or_else(|| std::env::var("HABITSYNC_DATA").ok())
         .filter(|s| !s.is_empty())
         .map(PathBuf::from);
+    let host = arg("--host")
+        .or_else(|| std::env::var("HABITSYNC_HOST").ok())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "127.0.0.1".to_string());
 
-    let store = Store::open(data);
-    let server = match Server::http(("0.0.0.0", port)) {
+    let store = match Store::open(data) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("could not bind :{port}: {e}");
+            eprintln!("{e}");
             std::process::exit(1);
         }
     };
-    println!("habitsync listening on http://0.0.0.0:{port}");
+    let server = match Server::http((host.as_str(), port)) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("could not bind {host}:{port}: {e}");
+            std::process::exit(1);
+        }
+    };
+    println!("habitsync listening on http://{host}:{port}");
 
     for request in server.incoming_requests() {
         handle(request, &store);
@@ -66,9 +79,13 @@ fn handle(mut request: Request, store: &Store) {
     let method = request.method().clone();
     let url = request.url().to_string();
     let mut body = String::new();
-    let _ = request.as_reader().read_to_string(&mut body);
+    let _ = request.as_reader().take(MAX_BODY + 1).read_to_string(&mut body);
 
-    let (status, payload) = route(store, &method, &url, &body);
+    let (status, payload) = if body.len() as u64 > MAX_BODY {
+        (413, error_json("request body too large"))
+    } else {
+        route(store, &method, &url, &body)
+    };
     let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
     let response = Response::from_string(payload)
         .with_status_code(status)
