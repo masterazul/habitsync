@@ -35,27 +35,24 @@ impl Store {
         })
     }
 
-    pub fn write<R>(&self, f: impl FnOnce(&mut Data) -> R) -> R {
+    pub fn write<R>(&self, f: impl FnOnce(&mut Data) -> R) -> Result<R, String> {
         let mut guard = self.data.lock().unwrap();
         let result = f(&mut guard);
         if let Some(path) = &self.path {
-            match serde_json::to_vec_pretty(&*guard) {
-                Ok(bytes) => {
-                    let mut tmp = path.clone().into_os_string();
-                    tmp.push(".tmp");
-                    let tmp = PathBuf::from(tmp);
-                    if let Err(e) = std::fs::write(&tmp, &bytes) {
-                        eprintln!("warning: could not write {}: {e}", tmp.display());
-                        let _ = std::fs::remove_file(&tmp);
-                    } else if let Err(e) = std::fs::rename(&tmp, path) {
-                        eprintln!("warning: could not persist {}: {e}", path.display());
-                        let _ = std::fs::remove_file(&tmp);
-                    }
-                }
-                Err(e) => eprintln!("warning: could not serialize state: {e}"),
+            let bytes = serde_json::to_vec_pretty(&*guard).map_err(|e| e.to_string())?;
+            let mut tmp = path.clone().into_os_string();
+            tmp.push(format!(".{}.tmp", std::process::id()));
+            let tmp = PathBuf::from(tmp);
+            if let Err(e) = std::fs::write(&tmp, &bytes) {
+                let _ = std::fs::remove_file(&tmp);
+                return Err(format!("could not write {}: {e}", tmp.display()));
+            }
+            if let Err(e) = std::fs::rename(&tmp, path) {
+                let _ = std::fs::remove_file(&tmp);
+                return Err(format!("could not persist {}: {e}", path.display()));
             }
         }
-        result
+        Ok(result)
     }
 
     pub fn read<R>(&self, f: impl FnOnce(&Data) -> R) -> R {

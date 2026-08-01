@@ -112,7 +112,13 @@ fn route(store: &Store, method: &Method, url: &str, body: &str) -> (u16, String)
     match (method, path) {
         (Method::Get, "/health") => (200, "{\"status\":\"ok\"}".to_string()),
         (Method::Post, "/sync") => match serde_json::from_str::<SyncRequest>(body) {
-            Ok(req) => (200, serde_json::to_string(&do_sync(store, req)).unwrap()),
+            Ok(req) => match do_sync(store, req) {
+                Ok(response) => (200, serde_json::to_string(&response).unwrap()),
+                Err(e) => {
+                    eprintln!("sync: {e}");
+                    (503, error_json("could not persist the sync"))
+                }
+            },
             Err(e) => (400, error_json(&e.to_string())),
         },
         (Method::Get, "/habits") => {
@@ -128,7 +134,7 @@ fn route(store: &Store, method: &Method, url: &str, body: &str) -> (u16, String)
     }
 }
 
-fn do_sync(store: &Store, req: SyncRequest) -> SyncResponse {
+fn do_sync(store: &Store, req: SyncRequest) -> Result<SyncResponse, String> {
     let pushed_habits: Vec<String> = req.habits.iter().map(|h| h.id.clone()).collect();
     let pushed_checkins: Vec<String> = req.checkins.iter().map(|c| c.id.clone()).collect();
     store.write(|d| {

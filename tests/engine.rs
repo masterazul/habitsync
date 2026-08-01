@@ -69,10 +69,12 @@ fn store_persists_across_reopen() {
 
     {
         let store = Store::open(Some(path.clone())).unwrap();
-        store.write(|d| {
-            d.counter = 7;
-            d.habits.insert("h1".to_string(), habit("h1", "Read", 3));
-        });
+        store
+            .write(|d| {
+                d.counter = 7;
+                d.habits.insert("h1".to_string(), habit("h1", "Read", 3));
+            })
+            .unwrap();
     }
 
     let reopened = Store::open(Some(path.clone())).unwrap();
