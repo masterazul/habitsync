@@ -115,12 +115,33 @@ fn route(store: &Store, method: &Method, url: &str, body: &str) -> (u16, String)
 }
 
 fn do_sync(store: &Store, req: SyncRequest) -> SyncResponse {
+    let pushed_habits: Vec<String> = req.habits.iter().map(|h| h.id.clone()).collect();
+    let pushed_checkins: Vec<String> = req.checkins.iter().map(|c| c.id.clone()).collect();
     store.write(|d| {
         sync::apply(&mut d.habits, req.habits, &mut d.counter);
         sync::apply(&mut d.checkins, req.checkins, &mut d.counter);
+
+        let mut habits = sync::changes_since(&d.habits, req.since);
+        for id in pushed_habits {
+            if let Some(current) = d.habits.get(&id) {
+                if current.seq <= req.since && !habits.iter().any(|h| h.id == id) {
+                    habits.push(current.clone());
+                }
+            }
+        }
+
+        let mut checkins = sync::changes_since(&d.checkins, req.since);
+        for id in pushed_checkins {
+            if let Some(current) = d.checkins.get(&id) {
+                if current.seq <= req.since && !checkins.iter().any(|c| c.id == id) {
+                    checkins.push(current.clone());
+                }
+            }
+        }
+
         SyncResponse {
-            habits: sync::changes_since(&d.habits, req.since),
-            checkins: sync::changes_since(&d.checkins, req.since),
+            habits,
+            checkins,
             cursor: d.counter,
         }
     })
