@@ -15,7 +15,7 @@ pub fn parse_date(text: &str) -> Option<i64> {
     let y = parts.next()?.parse::<i64>().ok()?;
     let m = parts.next()?.parse::<i64>().ok()?;
     let d = parts.next()?.parse::<i64>().ok()?;
-    if parts.next().is_some() || !(1..=12).contains(&m) || d < 1 {
+    if parts.next().is_some() || !(1..=9999).contains(&y) || !(1..=12).contains(&m) || d < 1 {
         return None;
     }
     let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
