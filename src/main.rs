@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use std::collections::BTreeSet;
 use std::io::Read;
 use std::path::PathBuf;
@@ -88,7 +90,10 @@ fn handle(mut request: Request, store: &Store) {
     let method = request.method().clone();
     let url = request.url().to_string();
     let mut body = String::new();
-    let _ = request.as_reader().take(MAX_BODY + 1).read_to_string(&mut body);
+    let _ = request
+        .as_reader()
+        .take(MAX_BODY + 1)
+        .read_to_string(&mut body);
 
     let (status, payload) = if body.len() as u64 > MAX_BODY {
         (413, error_json("request body too large"))
