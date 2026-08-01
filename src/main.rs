@@ -41,10 +41,19 @@ struct HabitStats {
 }
 
 fn main() {
-    let port: u16 = arg("--port")
+    let port: u16 = match arg("--port")
         .or_else(|| std::env::var("HABITSYNC_PORT").ok())
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(8787);
+        .filter(|s| !s.is_empty())
+    {
+        Some(s) => match s.parse() {
+            Ok(p) => p,
+            Err(_) => {
+                eprintln!("invalid port: {s}");
+                std::process::exit(1);
+            }
+        },
+        None => 8787,
+    };
     let data = arg("--data")
         .or_else(|| std::env::var("HABITSYNC_DATA").ok())
         .filter(|s| !s.is_empty())
@@ -68,7 +77,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    println!("habitsync listening on http://{host}:{port}");
+    println!("habitsync listening on http://{}", server.server_addr());
 
     for request in server.incoming_requests() {
         handle(request, &store);
