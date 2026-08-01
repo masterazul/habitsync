@@ -5,6 +5,7 @@ use crate::model::{Checkin, Habit};
 pub trait Item: Clone {
     fn id(&self) -> &str;
     fn updated_at(&self) -> u64;
+    fn deleted(&self) -> bool;
     fn seq(&self) -> u64;
     fn set_seq(&mut self, seq: u64);
 }
@@ -15,6 +16,9 @@ impl Item for Habit {
     }
     fn updated_at(&self) -> u64 {
         self.updated_at
+    }
+    fn deleted(&self) -> bool {
+        self.deleted
     }
     fn seq(&self) -> u64 {
         self.seq
@@ -30,6 +34,9 @@ impl Item for Checkin {
     }
     fn updated_at(&self) -> u64 {
         self.updated_at
+    }
+    fn deleted(&self) -> bool {
+        self.deleted
     }
     fn seq(&self) -> u64 {
         self.seq
@@ -48,7 +55,12 @@ pub fn apply<T: Item>(
     for mut record in incoming {
         let accept = match store.get(record.id()) {
             None => true,
-            Some(existing) => record.updated_at() > existing.updated_at(),
+            Some(existing) => {
+                record.updated_at() > existing.updated_at()
+                    || (record.updated_at() == existing.updated_at()
+                        && record.deleted()
+                        && !existing.deleted())
+            }
         };
         if accept {
             *counter += 1;

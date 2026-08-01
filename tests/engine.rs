@@ -124,6 +124,23 @@ fn tombstone_wins_and_propagates() {
 }
 
 #[test]
+fn delete_wins_an_exact_timestamp_tie() {
+    let mut store: BTreeMap<String, Habit> = BTreeMap::new();
+    let mut counter = 0;
+    apply(&mut store, vec![habit("a", "run", 500)], &mut counter);
+
+    let mut tomb = habit("a", "run", 500);
+    tomb.deleted = true;
+    assert_eq!(apply(&mut store, vec![tomb], &mut counter), 1);
+    assert!(store["a"].deleted);
+
+    let mut revive = habit("a", "run", 500);
+    revive.deleted = false;
+    assert_eq!(apply(&mut store, vec![revive], &mut counter), 0);
+    assert!(store["a"].deleted);
+}
+
+#[test]
 fn current_streak_counts_grace_day() {
     let base = days_from_civil(2026, 6, 27);
     let yesterday: BTreeSet<i64> = [base - 1, base - 2].into_iter().collect();
